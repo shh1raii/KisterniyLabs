@@ -10,4 +10,4 @@ Package: calculate-files
 Architecture: all
 Depends: bash
 Description: A simple script to calculate files in a directory
-This script counts the number of files in a given directory.
+ This script counts the number of files in a given directory.
