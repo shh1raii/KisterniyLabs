@@ -1,0 +1,70 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.40">
+    <actions/>
+    <description>Build RPM, Install RPM, and Execute Script</description>
+    <keepDependencies>false</keepDependencies>
+    <properties/>
+    <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.87">
+        <script>
+            pipeline {
+                agent any
+
+                stages {
+                    stage('Build and run Docker') {
+                        steps {
+                            script {
+                                sh 'set -e'
+                                sh 'docker build -t deep-image /var/jenkins_home'
+                                sh 'docker run --name deep-container -d deep-image'
+                            }
+                        }
+                    }
+
+                    stage('Build RPM Package') {
+                        steps {
+                            script {
+                                // Exit on error
+                                sh 'set -e'
+
+                                // Build RPM inside the container
+                                sh 'docker exec deep-container rpmdev-setuptree'
+                                sh 'docker exec deep-container wget https://github.com/shh1raii/KisterniyLabs/archive/main.zip'
+                                sh 'docker exec deep-container unzip main.zip'
+                                sh 'docker exec deep-container mv KisterniyLabs-main/rpm/calculate_files.spec ~/rpmbuild/SPECS/'
+                                sh 'docker exec deep-container mv KisterniyLabs-main/calculate_files.sh ~/rpmbuild/SPECS/'
+                                sh 'docker exec deep-container mv main.zip ~/rpmbuild/SOURCES/'
+                                sh 'docker exec deep-container rpmbuild -bs --define "dist .generic" ~/rpmbuild/SPECS/calculate_files.spec'
+                                sh 'docker exec deep-container rpmbuild --rebuild ~/rpmbuild/SRPMS/calculate_files-1.0-1.generic.src.rpm'
+                            }
+                        }
+                    }
+
+                    stage('Install RPM Package') {
+                        steps {
+                            script {
+                                // Install RPM package inside the container
+                                sh 'docker exec deep-container rpm -ivh ~/rpmbuild/RPMS/noarch/calculate_files-1.0-1.el7.noarch.rpm'
+                                sh 'docker exec deep-container calculate_files --check_dir=KisterniyLabs-main'
+                                sh 'docker exec deep-container rm -r KisterniyLabs-main'
+                            }
+                        }
+                    }
+
+                    stage('Stop Docker') {
+                        steps {
+                            script {
+                                // Stop Docker
+                                sh 'docker stop deep-container'
+                                sh 'docker rm deep-container'
+                                sh 'docker rmi deep-image'
+                            }
+                        }
+                    }
+                }
+            }
+        </script>
+        <sandbox>true</sandbox>
+    </definition>
+    <triggers class="vector"/>
+    <disabled>false</disabled>
+</flow-definition>
