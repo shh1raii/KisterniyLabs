@@ -29,6 +29,7 @@ jobs:
 
       - name: Build RPM
         run: |
+          mv main.zip /github/home/rpmbuild/SOURCES/
           cp rpm/calculate_files.spec ~/rpmbuild/SPECS/
           cd ~/rpmbuild/SOURCES/
           wget https://github.com/shh1raii/KisterniyLabs/archive/main.zip
